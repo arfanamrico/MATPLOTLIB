@@ -1,0 +1,11 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+path = r"D:\HeidiSQL\Meas\RawIOH.csv"
+df = pd.read_csv(path)
+data = pd.DataFrame(df[df['Site ID'] == '03ASK0004'])
+datadate = pd.DataFrame(data[data['DATE'] == '9/13/2022'])
+#print(datadate[['DATE','MC_H3I_Cell Availability']])
+plt.plot(datadate['TIME'],datadate['MC_H3I_DL Cell Throughput'])
+#plt.xlabel(data['DATE'])
+plt.show()
