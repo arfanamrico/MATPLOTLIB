@@ -11,9 +11,9 @@ datasec1 = pd.DataFrame(sec1[sec1['DATE'] == '10/6/2022'])
 datasec2 = pd.DataFrame(sec2[sec2['DATE'] == '10/6/2022'])
 datasec3 = pd.DataFrame(sec3[sec3['DATE'] == '10/6/2022'])
 
-plt.plot(datasec1['TIME'],datasec1['MC_H3I_DL Cell Throughput'])
-plt.plot(datasec2['TIME'],datasec2['MC_H3I_DL Cell Throughput'])
-plt.plot(datasec3['TIME'],datasec3['MC_H3I_DL Cell Throughput'])
+plt.plot(datasec1['TIME'],datasec1['MC_H3I_DL Cell Throughput'],label="04PBR0037_MUTIARA_PURWODADI_PL_L18_11")
+plt.plot(datasec2['TIME'],datasec2['MC_H3I_DL Cell Throughput'],label="04PBR0037_MUTIARA_PURWODADI_PL_L18_12")
+plt.plot(datasec3['TIME'],datasec3['MC_H3I_DL Cell Throughput'],label="04PBR0037_MUTIARA_PURWODADI_PL_L18_13")
 
 plt.legend()
 plt.title("MC_H3I_DL Cell Throughput")
