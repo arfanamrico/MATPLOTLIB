@@ -1,0 +1,24 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+path = r"D:\HeidiSQL\Meas\RawIOH.csv"
+df = pd.read_csv(path)
+sec1 = pd.DataFrame(df[df['CellName'] == '04PBR0037_MUTIARA_PURWODADI_PL_L18_11'])
+sec2 = pd.DataFrame(df[df['CellName'] == '04PBR0037_MUTIARA_PURWODADI_PL_L18_12'])
+sec3 = pd.DataFrame(df[df['CellName'] == '04PBR0037_MUTIARA_PURWODADI_PL_L18_13'])
+
+datasec1 = pd.DataFrame(sec1[sec1['DATE'] == '10/6/2022'])
+datasec2 = pd.DataFrame(sec2[sec2['DATE'] == '10/6/2022'])
+datasec3 = pd.DataFrame(sec3[sec3['DATE'] == '10/6/2022'])
+
+plt.plot(datasec1['TIME'],datasec1['MC_H3I_DL Cell Throughput'])
+plt.plot(datasec2['TIME'],datasec2['MC_H3I_DL Cell Throughput'])
+plt.plot(datasec3['TIME'],datasec3['MC_H3I_DL Cell Throughput'])
+
+plt.legend()
+plt.title("MC_H3I_DL Cell Throughput")
+plt.xlabel("date")
+#plt.ylabel("MC_H3I_DL Cell Throughput")
+
+plt.tight_layout()
+plt.show()
