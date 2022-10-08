@@ -1,0 +1,47 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+path = r"D:\HeidiSQL\Meas\RawIOH.csv"
+df = pd.read_csv(path)
+
+tanggal = '10/7/2022'
+kpi1 = 'MC_H3I_DL Cell Throughput'
+kpi2 = 'MC_H3I_DL PRB Utilization'
+kpi3 = 'MC_H3I_CQI'
+
+sector1 = '04PBR0037_MUTIARA_PURWODADI_PL_L18_11'
+sector2 = '04PBR0037_MUTIARA_PURWODADI_PL_L18_12'
+sector3 = '04PBR0037_MUTIARA_PURWODADI_PL_L18_13'
+
+sec1 = pd.DataFrame(df[df['CellName'] == sector1])
+sec2 = pd.DataFrame(df[df['CellName'] == sector2])
+sec3 = pd.DataFrame(df[df['CellName'] == sector3])
+
+datasec1 = pd.DataFrame(sec1[sec1['DATE'] == tanggal])
+datasec2 = pd.DataFrame(sec2[sec2['DATE'] == tanggal])
+datasec3 = pd.DataFrame(sec3[sec3['DATE'] == tanggal])
+
+fig, (ch1, ch2, ch3) = plt.subplots(nrows=3, ncols=1, sharex=True)
+
+ch1.plot(datasec1['TIME'],datasec1[kpi1],label=sector1)
+ch1.plot(datasec2['TIME'],datasec2[kpi1],label=sector2)
+ch1.plot(datasec3['TIME'],datasec3[kpi1],label=sector3)
+
+ch2.plot(datasec1['TIME'],datasec1[kpi2],label=sector1)
+ch2.plot(datasec2['TIME'],datasec2[kpi2],label=sector2)
+ch2.plot(datasec3['TIME'],datasec3[kpi2],label=sector3)
+
+ch3.plot(datasec1['TIME'],datasec1[kpi3],label=sector1)
+ch3.plot(datasec2['TIME'],datasec2[kpi3],label=sector2)
+ch3.plot(datasec3['TIME'],datasec3[kpi3],label=sector3)
+
+ch1.legend()
+ch1.set_title(kpi1)
+ch2.legend()
+ch2.set_title(kpi2)
+ch3.legend()
+ch3.set_title(kpi3)
+ch3.set_xlabel(tanggal)
+
+plt.tight_layout()
+plt.show()
