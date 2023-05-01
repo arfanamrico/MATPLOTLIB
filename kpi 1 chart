@@ -1,0 +1,43 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import mysql.connector
+
+#======================
+mydb = mysql.connector.connect(
+  host="localhost",
+  user="root",
+  password="",
+  database="npm"
+)
+mycursor = mydb.cursor()
+
+# path = r"E:\NPM\KPI\RawIOH 20230405.csv"
+# df = pd.read_csv(path)
+# df = pd.DataFrame(df)
+siteid = '04PBR0076'
+tanggal = '2023-04-29'
+sql = f"select * from ioh_raw_4g where date >= '{tanggal}' and `Site ID` = '{siteid}'"
+df = pd.read_sql_query(sql,mydb)
+# print(df['tgl'])
+# df['tgl'] = df['DATE'].str.split('-',1).str[1]
+df['tgl'] = df['DATE'].astype('str')
+df['tgl'] = df['tgl'].str.split(' ',1).str[0]
+df['tgl'] = df['tgl'].str.split('-',1).str[1]
+df['jam'] = df['TIME'].astype('str')
+df['jam'] = df['jam'].str.split(' ',2).str[2]
+df['jam'] = df['jam'].str.split(':',1).str[0]
+df.insert(0,'tgljam',df['tgl'].astype('str')+'_'+df['jam'].astype('str'))
+
+# df.insert(0,'datetime',df['DATE'].astype('str')+'_'+df['TIME'].astype('str'))
+ds = df[df['Site ID']==siteid].reset_index()
+namecell = []
+for c in ds['CellName']:
+    if c in namecell: pass
+    else: namecell.append(c)
+for cell in namecell:
+    da = ds[ds['CellName']==cell]
+    plt.plot(da['tgljam'],da['MC_H3I_DL PRB Utilization'],label=cell)
+plt.xticks(rotation=90)
+plt.title('MC_H3I_DL PRB Utilization')
+plt.legend()
+plt.show()
