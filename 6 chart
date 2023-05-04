@@ -1,0 +1,29 @@
+import matplotlib.pyplot as plt
+import pandas as pd
+
+path = r"E:\NPM\KPI\data update\RawIOH NewTamplate 20230501.csv"
+df = pd.read_csv(path)
+df = pd.DataFrame(df)
+df['jam'] = df['TIME'].str.split(':').str[0]
+# print(df)
+siteid = '04PBR0090'
+band = 'L1800'
+dce = df[df['Site ID']==siteid].reset_index()
+ds =  dce[dce['Band']==band].reset_index()
+namecell = []
+for c in ds['CellName']:
+    if c in namecell: pass
+    else: namecell.append(c)
+namakpi = ['MC_H3I_DL PRB Utilization','RANK2_NOM_NEWVER','MC_H3I_CQI','MC_H3I_Active User','MC_H3I_Spectral Eficiency','MC_H3I_DL Cell Throughput','MC_H3I_ULRSSI','Avg_TA_meter','MC_H3I_Cell Availability']
+kpi = list(enumerate(namakpi))
+plt.figure(figsize=(15,7))
+for i in kpi:
+    plt.subplot(3,3,i[0]+1)
+    for cell in namecell:
+        da = ds[ds['CellName']==cell]
+        plt.plot(da['jam'],da[i[1]],label=cell)
+        plt.xticks(rotation = 90)
+        plt.title(i[1])
+plt.legend(loc='best')
+plt.tight_layout()
+plt.show()    
