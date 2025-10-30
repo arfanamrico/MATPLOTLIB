@@ -1,0 +1,113 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from datetime import timedelta
+
+# === KONFIGURASI ===
+csv_file = r"C:\Users\Lenovo\Documents\data2\4G_kpi.csv"
+
+# Input manual
+# site_id_input = input("Masukkan SITE_ID: ").strip()
+# sector_input = input("Masukkan sector: ").strip()
+
+site_id_input = '13BKS0154'
+sector_input = '1'
+
+# === BACA CSV ===
+df = pd.read_csv(csv_file)
+
+# --- Perbaikan parsing tanggal ---
+# Coba tebak format tanggal secara otomatis
+try:
+    df['Date'] = pd.to_datetime(df['Date'], infer_datetime_format=True, dayfirst=True, errors='coerce')
+except Exception:
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+
+# Gabungkan Date + Time
+if 'Time' in df.columns:
+    # Bersihkan spasi dan nilai kosong di kolom Time
+    df['Time'] = df['Time'].astype(str).str.strip()
+    df['Datetime'] = pd.to_datetime(df['Date'].dt.strftime('%Y-%m-%d') + ' ' + df['Time'], errors='coerce')
+else:
+    df['Datetime'] = df['Date']
+
+# Buang baris tanpa waktu valid
+df = df.dropna(subset=['Datetime'])
+
+# Filter 7 hari terakhir
+latest_date = df['Datetime'].max()
+seven_days_ago = latest_date - timedelta(days=14) #jumhlah hari
+df = df[df['Datetime'] >= seven_days_ago]
+
+# Filter site dan sector
+filtered_df = df[
+    (df['SITE_ID'].astype(str) == site_id_input) &
+    (df['sec'].astype(str) == sector_input)
+]
+
+if filtered_df.empty:
+    print(f"Tidak ada data untuk SITE_ID {site_id_input} sector {sector_input}.")
+else:
+    print(f"Data dari {seven_days_ago.date()} sampai {latest_date.date()} untuk SITE_ID={site_id_input}, sec={sector_input}")
+
+    # === KPI List ===
+    kpi_list = [
+        'IOH_Cell Availability',
+        'IOH_QPSK_RATIO',
+        'IOH_EUT',
+        'IOH_4G Rank2 Ratio',
+        'IOH_ULRSSI',
+        '#S1 Sig SR'
+    ]
+
+    # --- Cell name check ---
+    if 'Cell Name' not in filtered_df.columns:
+        print("Kolom 'Cell Name' tidak ditemukan di CSV.")
+    else:
+        cell_names = sorted(filtered_df['Cell Name'].dropna().unique())
+
+        # === Plot setup ===
+        fig, axes = plt.subplots(3, 2, figsize=(14, 7)) #14, 8
+        fig.suptitle(
+            f"Trend KPI (Cell Level, 7 Hari Terakhir)\nSITE_ID: {site_id_input} | Sector: {sector_input}",
+            fontsize=14, fontweight='bold'
+        )
+
+        # Format tanggal harian, grid hourly
+        date_formatter = mdates.DateFormatter('%d-%b')
+        day_locator = mdates.DayLocator(interval=1)
+        hour_locator = mdates.HourLocator(interval=1)
+
+        axes = axes.flatten()
+
+        for i, kpi in enumerate(kpi_list):
+            ax = axes[i]
+            if kpi not in filtered_df.columns:
+                ax.text(0.5, 0.5, f"{kpi} tidak ditemukan", ha='center', va='center', fontsize=10)
+                continue
+
+            for cell in cell_names:
+                df_cell = filtered_df[filtered_df['Cell Name'] == cell]
+                if not df_cell.empty:
+                    ax.plot(df_cell['Datetime'], df_cell[kpi],
+                            linestyle='-',  label=cell, alpha=0.8) #
+
+            ax.set_title(kpi, fontsize=10, fontweight='bold')
+            ax.legend(fontsize=8, loc='best')
+            ax.set_xlim([seven_days_ago, latest_date])
+
+            ax.xaxis.set_major_formatter(date_formatter)
+            ax.xaxis.set_major_locator(day_locator)
+            ax.xaxis.set_minor_locator(hour_locator)
+            ax.tick_params(axis='x', rotation=90) #arah tulisan sumbu X, tanggal
+
+            ax.grid(True, which='major', linestyle='--', alpha=0.5)
+            ax.grid(True, which='minor', linestyle=':', alpha=0.3)
+
+        # Hapus subplot kosong
+        for j in range(len(kpi_list), len(axes)):
+            fig.delaxes(axes[j])
+
+        plt.subplots_adjust(hspace=0.35, wspace=0.25, bottom=0.15)
+        plt.show()
+        # print(df['Datetime'])
