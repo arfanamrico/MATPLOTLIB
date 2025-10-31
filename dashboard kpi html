@@ -1,0 +1,261 @@
+import pandas as pd
+import json
+from datetime import timedelta
+
+# === KONFIGURASI ===
+csv_file = r"C:\\Users\\Lenovo\\Documents\\data2\\4G_kpi_ecel.csv"
+output_html = r"C:\\Users\\Lenovo\\Documents\\data2\\dashboard_kpi_css_cellfilter_selectall.html"
+jmlh_hari_default = 7
+
+# === BACA CSV ===
+df = pd.read_csv(csv_file)
+
+# --- Parsing tanggal ---
+try:
+    df['Date'] = pd.to_datetime(df['Date'], infer_datetime_format=True, dayfirst=True, errors='coerce')
+except Exception:
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+
+if 'Time' in df.columns:
+    df['Time'] = df['Time'].astype(str).str.strip()
+    df['Datetime'] = pd.to_datetime(df['Date'].dt.strftime('%Y-%m-%d') + ' ' + df['Time'], errors='coerce')
+else:
+    df['Datetime'] = df['Date']
+
+df = df.dropna(subset=['Datetime'])
+
+# === KPI LIST ===
+KPI_LIST = [
+    'HX4_Cell Availability',
+    'HX4_DL User Throughput (Mbps)',
+    'HX4_Rank2(%)',
+    'HX4_DL PRB Utilization',
+    'HX4_Total PS Traffic Vol (GB)',
+    'AVERAGE CQI',
+    'DL QPSK%',
+    'Last TTI Ratio(%)',
+    'Average TA (m)',
+    'ActiveUser'
+]
+
+site_ids = sorted(df['SITE_ID'].dropna().unique())
+min_date = df['Datetime'].min().strftime('%Y-%m-%d')
+max_date = df['Datetime'].max().strftime('%Y-%m-%d')
+latest_date = df['Datetime'].max()
+start_default = (latest_date - timedelta(days=jmlh_hari_default)).strftime('%Y-%m-%d')
+end_default = latest_date.strftime('%Y-%m-%d')
+
+# === Convert dataframe ke JSON agar bisa difilter di browser ===
+data_json = df.to_json(orient='records', date_format='iso')
+
+# === TEMPLATE HTML ===
+html_template = f"""
+<html>
+<head>
+<title>4G KPI Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<style>
+body {{
+  font-family: Arial, sans-serif;
+  margin: 10px 30px;
+  background: #f7f7f7;
+}}
+#controls {{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}}
+select, input[type=date], button {{
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}}
+select[multiple] {{
+  height: 90px;
+  width: 220px;
+}}
+button {{
+  background-color: #2f8bfd;
+  color: white;
+  cursor: pointer;
+  border: none;
+}}
+button:hover {{
+  background-color: #1d6fd9;
+}}
+.grid-container {{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+  gap: 25px;
+  justify-items: center;
+}}
+.card {{
+  background: white;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}}
+h2 {{
+  text-align: center;
+}}
+.small-btn {{
+  font-size: 12px;
+  padding: 3px 6px;
+  margin-left: 4px;
+  background-color: #6c757d;
+}}
+.small-btn:hover {{
+  background-color: #5a6268;
+}}
+</style>
+</head>
+<body>
+<h2>📊 4G KPI Dashboard</h2>
+
+<div id="controls">
+  <label><b>SITE_ID:</b></label>
+  <select id="siteSelect" onchange="updateCellList()">
+    {''.join([f'<option value="{s}">{s}</option>' for s in site_ids])}
+  </select>
+
+  <label><b>Cell Name:</b></label>
+  <div>
+    <select id="cellSelect" multiple></select><br>
+    <button class="small-btn" onclick="selectAllCells()">Select All</button>
+    <button class="small-btn" onclick="clearAllCells()">Clear All</button>
+  </div>
+
+  <label><b>Tanggal:</b></label>
+  <input type="date" id="startDate" min="{min_date}" max="{max_date}" value="{start_default}">
+  <input type="date" id="endDate" min="{min_date}" max="{max_date}" value="{end_default}">
+  <button onclick="updateDashboard()">Update</button>
+</div>
+
+<div class="grid-container" id="dashboard-grid"></div>
+
+<script>
+const rawData = {json.dumps(data_json)};
+const data = JSON.parse(rawData);
+const KPI_LIST = {json.dumps(KPI_LIST)};
+
+// === Update dropdown Cell Name ===
+function updateCellList() {{
+  const site = document.getElementById('siteSelect').value;
+  const cellSelect = document.getElementById('cellSelect');
+  cellSelect.innerHTML = '';
+
+  const cells = [...new Set(data
+    .filter(d => d.SITE_ID == site)
+    .map(d => d["Cell Name"])
+  )].filter(Boolean).sort();
+
+  cells.forEach(c => {{
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    cellSelect.appendChild(opt);
+  }});
+
+  // Pilih semua cell secara default
+  selectAllCells();
+}}
+
+// === Tombol Select All & Clear All ===
+function selectAllCells() {{
+  const select = document.getElementById('cellSelect');
+  for (let i = 0; i < select.options.length; i++) {{
+    select.options[i].selected = true;
+  }}
+}}
+
+function clearAllCells() {{
+  const select = document.getElementById('cellSelect');
+  for (let i = 0; i < select.options.length; i++) {{
+    select.options[i].selected = false;
+  }}
+}}
+
+// === Fungsi utama update dashboard ===
+function updateDashboard() {{
+  const site = document.getElementById('siteSelect').value;
+  const selectedCells = Array.from(document.getElementById('cellSelect').selectedOptions).map(o => o.value);
+  const start = new Date(document.getElementById('startDate').value);
+  const end = new Date(document.getElementById('endDate').value);
+  const container = document.getElementById('dashboard-grid');
+  container.innerHTML = '';
+
+  const filtered = data.filter(d =>
+    d.SITE_ID == site &&
+    new Date(d.Datetime) >= start &&
+    new Date(d.Datetime) <= end &&
+    (selectedCells.length === 0 || selectedCells.includes(d["Cell Name"]))
+  );
+
+  if (filtered.length === 0) {{
+    container.innerHTML = '<p>Tidak ada data untuk SITE_ID ' + site + '</p>';
+    return;
+  }}
+
+  KPI_LIST.forEach((kpi, idx) => {{
+    const kpiData = filtered.filter(d => d[kpi] !== null);
+    if (kpiData.length === 0) return;
+
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.id = 'chart-' + idx;
+    container.appendChild(div);
+
+    const traces = [];
+    const cellList = [...new Set(filtered.map(d => d["Cell Name"]))].filter(Boolean);
+    cellList.forEach((cell, j) => {{
+      const df_cell = filtered.filter(d => d["Cell Name"] == cell && d[kpi] != null);
+      if (df_cell.length === 0) return;
+
+      traces.push({{
+        x: df_cell.map(d => d.Datetime),
+        y: df_cell.map(d => d[kpi]),
+        mode: 'lines+markers',
+        type: 'scatter',
+        line: {{color: `hsl(${{(j*45)%360}},70%,50%)`, width: 2}},
+        name: cell
+      }});
+    }});
+
+    const layout = {{
+      title: kpi,
+      margin: {{t: 40, l: 60, r: 20, b: 40}},
+      height: 300,
+      xaxis: {{title: 'Tanggal', tickformat: '%d-%b', showgrid: true}},
+      yaxis: {{title: kpi, showgrid: true}},
+      template: 'plotly_white',
+      legend: {{
+        orientation: 'h',
+        yanchor: 'bottom',
+        y: -0.3,
+        xanchor: 'center',
+        x: 0.5,
+        font: {{size: 9}}
+      }}
+    }};
+    Plotly.newPlot(div.id, traces, layout, {{displaylogo: false}});
+  }});
+}}
+
+// Inisialisasi
+updateCellList();
+updateDashboard();
+</script>
+</body>
+</html>
+"""
+
+# === Simpan file HTML ===
+with open(output_html, "w", encoding="utf-8") as f:
+    f.write(html_template)
+
+print(f"✅ Dashboard dengan tombol 'Select All / Clear All' disimpan di: {output_html}")
+print("💡 Kamu bisa filter SITE_ID, Cell Name, dan tanggal dengan cepat langsung dari browser.")
